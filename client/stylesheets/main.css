@@ -1,4 +1,4 @@
-body, html {
+body, html, #main {
   margin: 0;
   height: 100%;
 }
@@ -9,27 +9,21 @@ body {
   background-color: white;
 }
 
-.navbar-toggle {
+/*.navbar-toggle {
   margin: 5px !important;
   padding: 7px !important;
 }
+*/
 
+.original-col, .translation-col {
+  height: 100%;
+  padding: 0px 20px 20px;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+.col-inner {
+  overflow: scroll;
+  height: 100%;
+  border: 2px solid black;
+  border-radius: 5px;
+  padding: 10px;
+}
