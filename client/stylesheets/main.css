@@ -1,0 +1,10 @@
+body, html {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  max-width: 1500px;
+  margin: auto;
+  background-color: white;
+}

@@ -1,0 +1,31 @@
+<template name="layout">
+  <!-- <link href='http://fonts.googleapis.com/css?family=Open+Sans:300' rel='stylesheet' type='text/css'> -->
+
+  <div id="fb-root"></div>
+  <script>
+    // window.fbAsyncInit = function() {
+    //   FB.init({
+    //     appId      : '851835014840833',
+    //     xfbml      : true,
+    //     version    : 'v2.1'
+    //   });
+    // };
+
+    // (function(d, s, id){
+    //    var js, fjs = d.getElementsByTagName(s)[0];
+    //    if (d.getElementById(id)) {return;}
+    //    js = d.createElement(s); js.id = id;
+    //    js.src = "//connect.facebook.net/en_US/sdk.js";
+    //    fjs.parentNode.insertBefore(js, fjs);
+    //  }(document, 'script', 'facebook-jssdk'));
+  </script>
+
+  <script type="text/javascript">
+  window.twttr=(function(d,s,id){var t,js,fjs=d.getElementsByTagName(s)[0];if(d.getElementById(id)){return}js=d.createElement(s);js.id=id;js.src="https://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);return window.twttr||(t={_e:[],ready:function(f){t._e.push(f)}})}(document,"script","twitter-wjs"));
+  </script>
+
+  {{> header}}
+  <main id="main" role="main" class="row-fluid">
+    {{> yield}}
+  </main>
+</template>

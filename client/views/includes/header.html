@@ -1,0 +1,21 @@
+<template name="header">
+  <header class="navbar navbar-default header" role="header">
+    <div class="container-fluid">
+
+      <div class="collapse navbar-collapse">
+        <div class="navbar-header">
+          <div class="navbar">
+            <a class="navbar-brand" href="{{pathFor 'home'}}">Translator</a>
+          </div>
+        </div>
+        <ul class="nav navbar-nav navbar-right">
+            {{> loginButtons }} <!-- here -->
+        </ul>
+        <ul class="nav navbar-nav navbar-right">
+          <li><a class="about-link" href="{{pathFor 'about'}}">About this site</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </header>
+</template>

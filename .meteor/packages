@@ -6,3 +6,15 @@
 meteor-platform
 autopublish
 insecure
+coffeescript
+iron:router
+datariot:ganalytics
+spiderable
+gadicohen:phantomjs
+mrt:iron-router-progress
+ian:bootstrap-3
+ian:accounts-ui-bootstrap-3
+accounts-facebook
+accounts-google
+accounts-password
+
