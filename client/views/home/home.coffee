@@ -24,21 +24,43 @@ Template.home.rendered = ->
 
 Template.home.events
 
+  # Translate
   "click .translate-btn": (event, ui) ->
     text = $('.original-content').text()
     $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text&q=' + text, (data) ->
       console.log "Data: ", data
-      translatedText = data.data.translations[0].translatedText
-      # $('.translation-content').text(translatedText).focus()
-      Translation.update({}, {$set: {translatedText}})
-      console.log translatedText
+      machineTranslation = data.data.translations[0].translatedText
+      # $('.translation-content').text(machineTranslation).focus()
+      Translation.update({}, {$set: {machineTranslation}})
+      console.log machineTranslation
 
-  "keyup .translation-content": (event, ui) ->
-    target = event.target
-    targetText = target.innerText
-    addedText = 'extra'
-    $(target).text(targetText + addedText)
-    selectNewText(target, addedText)
+
+  # Autosuggestion on keyup
+  "keypress .translation-content": (event, ui) -> # Might require keypress for reliability
+    input = String.fromCharCode(event.keyCode)
+    unless !input or NON_SUGGESTED_EN_CHARS.test input
+
+      if Translation.findOne().machineTranslationWords
+
+        $('.translation-content').on 'keyup', (event) ->
+          $('.translation-content').off('keyup')
+          target = event.target
+          targetText = target.innerText
+
+          humanWords = targetText.split ' '
+          lastWord = _.last humanWords
+
+          if lastWord and lastWord.length > 2 # Minimum chars required for autosuggest
+            machineTranslationWords = Translation.findOne().machineTranslationWords
+            unusedWords = _.difference machineTranslationWords, humanWords # Case sensitive
+            unusedWords = _.uniq unusedWords
+            lastWordMatches = unusedWords.filter (word) -> word[0..(lastWord.length - 1)] is lastWord
+
+            if lastWordMatches.length > 0
+              debugger
+              addedText = lastWordMatches[0][lastWord.length..-1]
+              $(target).text(targetText + addedText)
+              selectNewText(target, addedText)
 
 
 
@@ -46,19 +68,19 @@ Template.home.events
 Tracker.autorun ->
 
   # Generates list of words from translated text
-  if translatedText = Translation.findOne().translatedText
-    translatedText = translatedText.replace(NON_SUGGESTED_EN_CHARS, '')
-    choppedTextWords = translatedText.split " "
-    choppedTextWords = choppedTextWords.filter (word) -> word isnt ''
-    Translation.update({}, {$set: {choppedTextWords}})
-    console.log choppedTextWords
+  if machineTranslation = Translation.findOne().machineTranslation
+    machineTranslation = machineTranslation.replace(NON_SUGGESTED_EN_CHARS, '')
+    machineTranslationWords = machineTranslation.split ' '
+    machineTranslationWords = machineTranslationWords.filter (word) -> word isnt ''
+    Translation.update({}, {$set: {machineTranslationWords}})
+    console.log machineTranslationWords
 
 
 
 
 # Methods
 
-@setWindowResizeListener = ->
+@setWindowResizeListener = -> # Needs a better value than 48
   $('#main').css(height: '100%')
   $('#main').css(height: $('body').height() - $('.navbar-default').height() - parseInt($('.navbar-default').css('margin-bottom')) - 48)
   $( window ).resize ->
