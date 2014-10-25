@@ -1,3 +1,5 @@
+TAB_KEYCODE = 9
+AUTOSUGGEST_MIN_CHARS = 3
 NON_SUGGESTED_EN_CHARS = new RegExp(/[^a-zA-Z0-9\s'-]/g)
 
 @Translation = new Meteor.Collection(null)
@@ -9,6 +11,9 @@ Translation.insert({})
 Template.home.rendered = ->
 
   setWindowResizeListener()
+
+  machineTranslation = MACHINE_TRANSLATION_EN
+  Translation.update({}, {$set: {machineTranslation}})
 
   # Meteor.call 'test',
   #   (error, result) ->
@@ -35,29 +40,35 @@ Template.home.events
       console.log machineTranslation
 
 
+  # Tab to accept autosuggestion
+  "keydown .translation-content": (event, ui) ->
+    if event.keyCode is TAB_KEYCODE and window.getSelection().isCollapsed is false
+      event.preventDefault()
+      event.stopPropagation()
+      window.getSelection().collapseToEnd()
+
+
   # Autosuggestion on keyup
-  "keypress .translation-content": (event, ui) -> # Might require keypress for reliability
+  "keypress .translation-content": (event, ui) -> # Need to allow mid-content editing, disable if cursor is in word
     input = String.fromCharCode(event.keyCode)
-    unless !input or NON_SUGGESTED_EN_CHARS.test input
-
+    unless !input or NON_SUGGESTED_EN_CHARS.test input # Might not work for all browsers because of special keycodes
       if Translation.findOne().machineTranslationWords
-
         $('.translation-content').on 'keyup', (event) ->
           $('.translation-content').off('keyup')
+
           target = event.target
           targetText = target.innerText
 
           humanWords = targetText.split ' '
           lastWord = _.last humanWords
 
-          if lastWord and lastWord.length > 2 # Minimum chars required for autosuggest
+          if lastWord and lastWord.length >= AUTOSUGGEST_MIN_CHARS
             machineTranslationWords = Translation.findOne().machineTranslationWords
             unusedWords = _.difference machineTranslationWords, humanWords # Case sensitive
             unusedWords = _.uniq unusedWords
             lastWordMatches = unusedWords.filter (word) -> word[0..(lastWord.length - 1)] is lastWord
 
             if lastWordMatches.length > 0
-              debugger
               addedText = lastWordMatches[0][lastWord.length..-1]
               $(target).text(targetText + addedText)
               selectNewText(target, addedText)
