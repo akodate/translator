@@ -1,12 +1,18 @@
-<template name="home">
-    <div class="original-col col-xs-6">
-      <div class="col-inner">
-        {{> jptext}}
-    </div>
-    </div>
-    <div class="translation-col col-xs-6">
-      <div class="col-inner">
-        {{> entext}}
+<template name='home'>
+  <div class='col-xs-12'><button class="btn btn-primary translate-btn" style="margin-bottom: 10px">Translate</button></div>
+  <p id='sampletext'>Sample text here.</p>
+  <div class='original-col col-xs-6'>
+    <div class='col-inner'>
+      <div class='original-content' contenteditable='true'>
+
       </div>
     </div>
+  </div>
+  <div class='translation-col col-xs-6'>
+    <div class='col-inner'>
+      <div class='translation-content' contenteditable='true'>
+
+      </div>
+    </div>
+  </div>
 </template>
