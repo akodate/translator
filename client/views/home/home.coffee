@@ -15,6 +15,11 @@ Template.home.rendered = ->
   machineTranslation = MACHINE_TRANSLATION_EN
   Translation.update({}, {$set: {machineTranslation}})
 
+  string = '彼は軍（アーミー）の超能力研究機関から、反政府ゲリラによって連れ出された超能力者タカシ（26号）であった。
+
+暴走族メンバー・島鉄雄は、突然現れたタカシを避けきれず彼（正確にはタカシの超能力で作られた障壁）に衝突し、重傷を負ってしまう。'
+  Meteor.call 'getWordAnalysisJA', string
+
   # Meteor.call 'test',
   #   (error, result) ->
   #     if !error
@@ -78,15 +83,21 @@ Template.home.events
 
 Tracker.autorun ->
 
-  # Generates list of words from translated text
+  # Generates list of words from machine translated text
   if machineTranslation = Translation.findOne().machineTranslation
     machineTranslation = machineTranslation.replace(NON_SUGGESTED_EN_CHARS, '')
     machineTranslationWords = machineTranslation.split ' '
     machineTranslationWords = machineTranslationWords.filter (word) -> word isnt ''
     Translation.update({}, {$set: {machineTranslationWords}})
-    console.log machineTranslationWords
+    console.log "machineTranslationWords", machineTranslationWords
 
 
+Tracker.autorun ->
+
+  # Displays current parsed JA word array
+  if WordAnalysis.findOne()
+    if parsedWordArray = WordAnalysis.findOne().parsedWordArray
+      console.log "parsedWordArray: ", parsedWordArray
 
 
 # Methods
