@@ -15,6 +15,6 @@ Meteor.methods
           console.log "Stdout: ", stdout if stdout
           done err, stdout
       )
-      parsedWordAnalysisJUMAN = parseWordAnalysisJUMAN rawHTML.result
-      console.log 'Complete: ', parsedWordAnalysisJUMAN
-      WordAnalysis.update {}, {parsedWordAnalysisJUMAN}
+      wordAnalysisJUMAN = parseWordAnalysisJUMAN rawHTML.result
+      console.log 'Complete: ', wordAnalysisJUMAN
+      WordAnalysis.update {}, {wordAnalysisJUMAN}

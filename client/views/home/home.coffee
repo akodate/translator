@@ -2,8 +2,15 @@ TAB_KEYCODE = 9
 AUTOCOMPLETE_MIN_CHARS = 3
 NON_SUGGESTED_EN_CHARS = new RegExp /[^a-zA-Z0-9\s'-]/g
 
+PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞']
+
 @Translation = new Meteor.Collection(null)
 Translation.insert({})
+
+
+
+
+
 
 
 
@@ -14,6 +21,11 @@ Template.home.rendered = ->
 
   machineTranslation = MACHINE_TRANSLATION_EN
   Translation.update({}, {$set: {machineTranslation}})
+
+
+
+
+
 
 
 
@@ -35,14 +47,12 @@ Template.home.events
     text = $('.original-content').text()
     Meteor.call 'getWordAnalysisJUMAN', text
 
-
   # Tab to accept autocompletion
   "keydown .translation-content": (event, ui) ->
     if event.keyCode is TAB_KEYCODE and window.getSelection().isCollapsed is false
       event.preventDefault()
       event.stopPropagation()
       window.getSelection().collapseToEnd()
-
 
   # Autocompletion on keyup
   "keypress .translation-content": (event, ui) -> # Need to allow mid-content editing, disable if cursor is in word
@@ -72,6 +82,11 @@ Template.home.events
 
 
 
+
+
+
+
+
 Tracker.autorun ->
 
   # Generates list of words from machine translated text
@@ -87,8 +102,17 @@ Tracker.autorun ->
 
   # Displays current parsed JA word array
   if WordAnalysis.findOne()
-    if parsedWordAnalysisJUMAN = WordAnalysis.findOne().parsedWordAnalysisJUMAN
-      console.log "parsedWordAnalysisJUMAN: ", parsedWordAnalysisJUMAN
+    if wordAnalysisJUMAN = WordAnalysis.findOne().wordAnalysisJUMAN
+      wordAnalysisJUMAN = processOriginalTextJUMAN(wordAnalysisJUMAN)
+
+      for word, index in wordAnalysisJUMAN
+        $('.original-content').append('<span id="' + index + '" class="word ja-word-type-' + word.type + '">' + word.word + '</span>')
+
+
+
+
+
+
 
 
 # Methods
@@ -115,3 +139,29 @@ Tracker.autorun ->
     selection.removeAllRanges()
     range.setStart(firstChild, firstChild.length - addedText.length)
     selection.addRange range
+
+@processOriginalTextJUMAN = (wordAnalysisJUMAN) ->
+  $('.original-content').empty()
+  for word, index in wordAnalysisJUMAN
+    nextType = wordAnalysisJUMAN[index + 1]['type'] if wordAnalysisJUMAN[index + 1]
+    if wordConcatenatableJUMAN(word, nextType)
+      wordAnalysisJUMAN[index + 1]['type'] = replaceSuffixTypeJUMAN(word, nextType) if replaceSuffixTypeJUMAN(word, nextType)
+      wordAnalysisJUMAN[index + 1]['word'] = word.word + wordAnalysisJUMAN[index + 1]['word']
+      wordAnalysisJUMAN[index + 1] = _.omit(wordAnalysisJUMAN[index + 1], ['subType', 'pronunciation'])
+      wordAnalysisJUMAN[index] = ''
+
+  wordAnalysisJUMAN = wordAnalysisJUMAN.filter Boolean
+  console.log "wordAnalysisJUMAN: ", wordAnalysisJUMAN
+  wordAnalysisJUMAN
+
+@wordConcatenatableJUMAN = (word, nextType) ->
+  (word.type is '名詞' and nextType is '名詞') \
+  or (word.type is '接頭辞' and $.inArray(nextType, PRIMARY_WORD_TYPES_JUMAN) isnt -1) \
+  or ($.inArray(word.type, PRIMARY_WORD_TYPES_JUMAN) isnt -1 and nextType is '接尾辞') \
+  or ($.inArray(word.type, PRIMARY_WORD_TYPES_JUMAN) isnt -1 and nextType is '助動詞')
+
+@replaceSuffixTypeJUMAN = (word, nextType) ->
+  if word.type is '名詞' and nextType is '接尾辞'
+    '複合名詞'
+  else if word.type is '動詞' and nextType is '接尾辞' or nextType is '助動詞'
+    '複合動詞'
