@@ -1,6 +1,6 @@
 TAB_KEYCODE = 9
 AUTOSUGGEST_MIN_CHARS = 3
-NON_SUGGESTED_EN_CHARS = new RegExp(/[^a-zA-Z0-9\s'-]/g)
+NON_SUGGESTED_EN_CHARS = new RegExp /[^a-zA-Z0-9\s'-]/g
 
 @Translation = new Meteor.Collection(null)
 Translation.insert({})

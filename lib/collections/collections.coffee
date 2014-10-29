@@ -1,0 +1,1 @@
+@WordAnalysis = new Meteor.Collection 'wordAnalysis'
