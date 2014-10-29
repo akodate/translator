@@ -1,5 +1,6 @@
 JUMAN_HTML_REGEX = new RegExp /<pre>([^]*)\nEOS/
 JUMAN_MATCHES = new RegExp '(^|\\n)(.+?)\\s(.+?)\\s(.+?)\\s(.+?)\\s(.+?)\\s(.+?)(?=\\s)', 'g'
+JUMAN_EXTRA_MATCHES = new RegExp '\\n@.+?(?=\\n)', 'g'
 
 WordAnalysis.remove({})
 WordAnalysis.insert({})
@@ -14,8 +15,9 @@ console.log '*******************************************************************
 
 @parseWordAnalysisJUMAN = (rawHTML) ->
   resultsSection = rawHTML.match(JUMAN_HTML_REGEX)[1]
-  # console.log "Result: "
-  # console.log resultsSection
+  resultsSection = resultsSection.replace(JUMAN_EXTRA_MATCHES, '')
+  console.log "Result: "
+  console.log resultsSection
   wordArr = getWordArrayJUMAN(resultsSection)
   # console.log WordAnalysis.find().fetch()
 
