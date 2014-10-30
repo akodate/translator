@@ -3,7 +3,7 @@ AUTOCOMPLETE_MIN_CHARS = 3
 NON_SUGGESTED_EN_CHARS = new RegExp /[^a-zA-Z0-9\s'-]/g
 
 PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞']
-DEFINABLE_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞']
+DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞']
 
 @Translation = new Meteor.Collection(null)
 Translation.insert({})
@@ -189,13 +189,20 @@ Tracker.autorun ->
     for definition, index in definitionsList
       $('#' + index).attr("data-definition", definition)
       $('#' + index).attr("data-title", definition)
+      $('#' + index).attr('data-define': 'false')
   else
-    console.log 'Definition list length mismatch!!!'
+    throw 'definition list length mismatch!!!'
 
-  definableWordElements = $('.word').filter () ->
+  definedWordElements = $('.word').filter ->
     wordType = @.getAttribute('data-word-type-ja')
-    $.inArray(wordType, DEFINABLE_WORD_TYPES_JUMAN) isnt -1
+    $.inArray(wordType, DEFINED_WORD_TYPES_JUMAN) isnt -1
 
-  definableWordElements.tooltip()
+  definedWordElements.attr('data-define': 'true')
+  definedWordElements.tooltip()
 
+  $(".word").on "show.bs.tooltip", ->
+    $(this).animate(backgroundColor: 'lightblue', 400)
+
+  $(".word").on "hide.bs.tooltip", ->
+    $(this).animate(backgroundColor: 'white', 100)
 

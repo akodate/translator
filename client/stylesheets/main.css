@@ -41,6 +41,10 @@ body {
   outline: none;
 }
 
+.word {
+  background-color: white;
+}
+
 ::-webkit-scrollbar {
     -webkit-appearance: none;
     width: 7px;
