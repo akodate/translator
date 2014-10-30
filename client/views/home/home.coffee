@@ -33,7 +33,7 @@ Template.home.rendered = ->
 Template.home.events
 
   # Translate
-  "click .translate-btn": (event, ui) ->
+  "click .translate-btn": (event, ui) -> # Define upper limit for GT requests
     text = $('.original-content').text()
     $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text&q=' + text, (data) ->
       console.log "Data: ", data
@@ -106,7 +106,14 @@ Tracker.autorun ->
       wordAnalysisJUMAN = processOriginalTextJUMAN(wordAnalysisJUMAN)
 
       for word, index in wordAnalysisJUMAN
+        wordAnalysisJUMAN[index]['id'] = index
         $('.original-content').append('<span id="' + index + '" class="word ja-word-type-' + word.type + '">' + word.word + '</span>')
+
+      console.log wordAnalysisJUMAN
+      queryList = (word.word for word in wordAnalysisJUMAN)
+
+      translateListGT queryList
+
 
 
 
@@ -165,3 +172,21 @@ Tracker.autorun ->
     '複合名詞'
   else if word.type is '動詞' and nextType is '接尾辞' or nextType is '助動詞'
     '複合動詞'
+
+@translateListGT = (list, func) ->
+  queryString = ('&q=' + query for query in list).join ''
+
+  $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text' + queryString
+  , (data) ->
+    console.log "Data: ", data
+    translationsList = (translation.translatedText for translation in data.data.translations)
+    console.log "Text: ", translationsList
+    addDefinitions translationsList
+
+@addDefinitions = (definitionsList) ->
+  if definitionsList.length is $('.word').length
+    for definition, index in definitionsList
+      $('#' + index).attr("data-definition", definition)
+  else
+    console.log 'Definition list length mismatch!!!'
+
