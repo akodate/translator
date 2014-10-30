@@ -16,9 +16,9 @@ console.log '*******************************************************************
 @parseWordAnalysisJUMAN = (rawHTML) ->
   resultsSection = rawHTML.match(JUMAN_HTML_REGEX)[1]
   resultsSection = resultsSection.replace(JUMAN_EXTRA_MATCHES, '')
-  console.log "Result: "
-  console.log resultsSection
   wordArr = getWordArrayJUMAN(resultsSection)
+  console.log "Result: ", wordArr
+  wordArr
   # console.log WordAnalysis.find().fetch()
 
 getWordArrayJUMAN = (resultsSection) ->

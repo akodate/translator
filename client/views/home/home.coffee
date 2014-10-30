@@ -1,8 +1,9 @@
 TAB_KEYCODE = 9
 AUTOCOMPLETE_MIN_CHARS = 3
-NON_SUGGESTED_EN_CHARS = new RegExp /[^a-zA-Z0-9\s'-]/g
+NON_AUTOCOMPLETED_CHARS_EN = new RegExp /[^a-zA-Z0-9\s'-]/g
 
-PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞']
+SENTENCE_ENDINGS_REGEX_JA = /(.+?([。！？]|･･･)(?![。！？]|･･･))/g # Sentence up until end of sentence ending(s)
+PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞']
 DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞']
 
 @Translation = new Meteor.Collection(null)
@@ -34,7 +35,7 @@ Template.home.rendered = ->
 Template.home.events
 
   # Translate
-  "click .translate-btn": (event, ui) -> # Define upper limit for GT requests
+  "click .translate-btn": (event, ui) -> # TODO: Define upper limit for GT requests
     text = $('.original-content').text()
     $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text&q=' + text, (data) ->
       console.log "Data: ", data
@@ -46,7 +47,8 @@ Template.home.events
   # JUMAN Analysis
   "click .juman-btn": (event, ui) ->
     text = $('.original-content').text()
-    Meteor.call 'getWordAnalysisJUMAN', text
+    splitText = splitTextJA(text)
+    Meteor.call 'getWordAnalysisJUMAN', splitText
 
   # Tab to accept autocompletion
   "keydown .translation-content": (event, ui) ->
@@ -56,9 +58,9 @@ Template.home.events
       window.getSelection().collapseToEnd()
 
   # Autocompletion on keyup
-  "keypress .translation-content": (event, ui) -> # Need to allow mid-content editing, disable if cursor is in word
+  "keypress .translation-content": (event, ui) -> # TODO: Need to allow mid-content editing, disable if cursor is in word
     input = String.fromCharCode(event.keyCode)
-    unless !input or NON_SUGGESTED_EN_CHARS.test input # Might not work for all browsers because of special keycodes
+    unless !input or NON_AUTOCOMPLETED_CHARS_EN.test input # TODO: Might not work for all browsers because of special keycodes
       if Translation.findOne().machineTranslationWords
         $('.translation-content').on 'keyup', (event) ->
           $('.translation-content').off('keyup')
@@ -92,7 +94,7 @@ Tracker.autorun ->
 
   # Generates list of words from machine translated text
   if machineTranslation = Translation.findOne().machineTranslation
-    machineTranslation = machineTranslation.replace(NON_SUGGESTED_EN_CHARS, '')
+    machineTranslation = machineTranslation.replace(NON_AUTOCOMPLETED_CHARS_EN, '')
     machineTranslationWords = machineTranslation.split ' '
     machineTranslationWords = machineTranslationWords.filter (word) -> word isnt ''
     Translation.update({}, {$set: {machineTranslationWords}})
@@ -125,14 +127,14 @@ Tracker.autorun ->
 
 # Methods
 
-@setWindowResizeListener = -> # Needs a better value than 48
+@setWindowResizeListener = -> # TODO: Needs a better value than 48
   $('#main').css(height: '100%')
   $('#main').css(height: $('body').height() - $('.navbar-default').height() - parseInt($('.navbar-default').css('margin-bottom')) - 48)
   $( window ).resize ->
     $('#main').css(height: '100%')
     $('#main').css(height: $('body').height() - $('.navbar-default').height() - parseInt($('.navbar-default').css('margin-bottom')) - 48)
 
-@selectNewText = (target, addedText) -> # Needs testing on Internet Explorer
+@selectNewText = (target, addedText) -> # TODO: Needs testing on Internet Explorer
   doc = document
   firstChild = target.childNodes[0]
   if doc.body.createTextRange
@@ -148,6 +150,10 @@ Tracker.autorun ->
     range.setStart(firstChild, firstChild.length - addedText.length)
     selection.addRange range
 
+@splitTextJA = (text) ->
+  splitText = text.split SENTENCE_ENDINGS_REGEX_JA
+  splitText = splitText.filter (element) -> SENTENCE_ENDINGS_REGEX_JA.test element # Weeds out extra non-sentence matches
+
 @processOriginalTextJUMAN = (wordAnalysisJUMAN) ->
   $('.original-content').empty()
   for word, index in wordAnalysisJUMAN
@@ -159,8 +165,6 @@ Tracker.autorun ->
       wordAnalysisJUMAN[index] = ''
 
   wordAnalysisJUMAN = wordAnalysisJUMAN.filter Boolean
-  console.log "wordAnalysisJUMAN: ", wordAnalysisJUMAN
-  wordAnalysisJUMAN
 
 @wordConcatenatableJUMAN = (word, nextType) ->
   (word.type is '名詞' and nextType is '名詞') \
@@ -174,15 +178,25 @@ Tracker.autorun ->
   else if word.type is '動詞' and nextType is '接尾辞' or nextType is '助動詞'
     '複合動詞'
 
-@translateListGT = (list, func) ->
-  queryString = ('&q=' + query for query in list).join ''
+@translateListGT = (list, parseCount, definitionsList) ->
+  parseCount ||= 0 # TODO: Filter querylist before GT request and match words up afterwards
+  definitionsList ||= []
+
+  if list.length - parseCount > 100
+    queryString = ('&q=' + query for query in list[parseCount..(parseCount + 99)]).join ''
+    parseCount += 100
+  else
+    queryString = ('&q=' + query for query in list[parseCount..-1]).join ''
+    parseCount = list.length
 
   $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text' + queryString
   , (data) ->
-    console.log "Data: ", data
-    translationsList = (translation.translatedText for translation in data.data.translations)
-    console.log "Text: ", translationsList
-    addDefinitions translationsList
+    definitionsList = definitionsList.concat(translation.translatedText for translation in data.data.translations) # +GT results
+    if parseCount isnt list.length # Recursive if list isn't fully parsed
+      translateListGT(list, parseCount, definitionsList)
+    else
+      unless $('.word').attr('data-define') # Add definition tooltips only if they're not there already (no data-define attr)
+        addDefinitions definitionsList
 
 @addDefinitions = (definitionsList) ->
   if definitionsList.length is $('.word').length
@@ -193,7 +207,7 @@ Tracker.autorun ->
   else
     throw 'definition list length mismatch!!!'
 
-  definedWordElements = $('.word').filter ->
+  definedWordElements = $('.word').filter -> # TODO: Bad tooltip positioning on wrapped words
     wordType = @.getAttribute('data-word-type-ja')
     $.inArray(wordType, DEFINED_WORD_TYPES_JUMAN) isnt -1
 
