@@ -3,6 +3,7 @@ AUTOCOMPLETE_MIN_CHARS = 3
 NON_SUGGESTED_EN_CHARS = new RegExp /[^a-zA-Z0-9\s'-]/g
 
 PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞']
+DEFINABLE_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞']
 
 @Translation = new Meteor.Collection(null)
 Translation.insert({})
@@ -107,7 +108,7 @@ Tracker.autorun ->
 
       for word, index in wordAnalysisJUMAN
         wordAnalysisJUMAN[index]['id'] = index
-        $('.original-content').append('<span id="' + index + '" class="word ja-word-type-' + word.type + '">' + word.word + '</span>')
+        $('.original-content').append('<span id="' + index + '" class="word" data-word-type-ja="' + word.type + '">' + word.word + '</span>')
 
       console.log wordAnalysisJUMAN
       queryList = (word.word for word in wordAnalysisJUMAN)
@@ -187,6 +188,14 @@ Tracker.autorun ->
   if definitionsList.length is $('.word').length
     for definition, index in definitionsList
       $('#' + index).attr("data-definition", definition)
+      $('#' + index).attr("data-title", definition)
   else
     console.log 'Definition list length mismatch!!!'
+
+  definableWordElements = $('.word').filter () ->
+    wordType = @.getAttribute('data-word-type-ja')
+    $.inArray(wordType, DEFINABLE_WORD_TYPES_JUMAN) isnt -1
+
+  definableWordElements.tooltip()
+
 
