@@ -2,7 +2,7 @@ TAB_KEYCODE = 9
 AUTOCOMPLETE_MIN_CHARS = 3
 NON_AUTOCOMPLETED_CHARS_EN = new RegExp /[^a-zA-Z0-9\s'-]/g
 
-SENTENCE_ENDINGS_REGEX_JA = /(.+?([。！？]|･･･)(?![。！？]|･･･))/g # Sentence up until end of sentence ending(s)
+SENTENCE_ENDINGS_REGEX_JA = /(.+?([。！？]|･･･|$)(?![。！？]|･･･))/g # Sentence up until end of sentence ending(s)
 PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞']
 DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞']
 
@@ -134,6 +134,9 @@ Tracker.autorun ->
     $('#main').css(height: '100%')
     $('#main').css(height: $('body').height() - $('.navbar-default').height() - parseInt($('.navbar-default').css('margin-bottom')) - 48)
 
+
+
+
 @selectNewText = (target, addedText) -> # TODO: Needs testing on Internet Explorer
   doc = document
   firstChild = target.childNodes[0]
@@ -150,9 +153,15 @@ Tracker.autorun ->
     range.setStart(firstChild, firstChild.length - addedText.length)
     selection.addRange range
 
+
+
+
 @splitTextJA = (text) ->
   splitText = text.split SENTENCE_ENDINGS_REGEX_JA
   splitText = splitText.filter (element) -> SENTENCE_ENDINGS_REGEX_JA.test element # Weeds out extra non-sentence matches
+
+
+
 
 @processOriginalTextJUMAN = (wordAnalysisJUMAN) ->
   $('.original-content').empty()
@@ -166,28 +175,26 @@ Tracker.autorun ->
 
   wordAnalysisJUMAN = wordAnalysisJUMAN.filter Boolean
 
-@wordConcatenatableJUMAN = (word, nextType) ->
+wordConcatenatableJUMAN = (word, nextType) ->
   (word.type is '名詞' and nextType is '名詞') \
   or (word.type is '接頭辞' and $.inArray(nextType, PRIMARY_WORD_TYPES_JUMAN) isnt -1) \
   or ($.inArray(word.type, PRIMARY_WORD_TYPES_JUMAN) isnt -1 and nextType is '接尾辞') \
   or ($.inArray(word.type, PRIMARY_WORD_TYPES_JUMAN) isnt -1 and nextType is '助動詞')
 
-@replaceSuffixTypeJUMAN = (word, nextType) ->
+replaceSuffixTypeJUMAN = (word, nextType) ->
   if word.type is '名詞' and nextType is '接尾辞'
     '複合名詞'
   else if word.type is '動詞' and nextType is '接尾辞' or nextType is '助動詞'
     '複合動詞'
 
+
+
+
 @translateListGT = (list, parseCount, definitionsList) ->
   parseCount ||= 0 # TODO: Filter querylist before GT request and match words up afterwards
   definitionsList ||= []
 
-  if list.length - parseCount > 100
-    queryString = ('&q=' + query for query in list[parseCount..(parseCount + 99)]).join ''
-    parseCount += 100
-  else
-    queryString = ('&q=' + query for query in list[parseCount..-1]).join ''
-    parseCount = list.length
+  [queryString, parseCount] = generateQueryGT(list, parseCount)
 
   $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text' + queryString
   , (data) ->
@@ -198,25 +205,42 @@ Tracker.autorun ->
       unless $('.word').attr('data-define') # Add definition tooltips only if they're not there already (no data-define attr)
         addDefinitions definitionsList
 
-@addDefinitions = (definitionsList) ->
+generateQueryGT = (list, parseCount) ->
+  if list.length - parseCount > 100
+    queryString = ('&q=' + query for query in list[parseCount..(parseCount + 99)]).join ''
+    parseCount += 100
+  else
+    queryString = ('&q=' + query for query in list[parseCount..-1]).join ''
+    parseCount = list.length
+  [queryString, parseCount]
+
+addDefinitions = (definitionsList) ->
   if definitionsList.length is $('.word').length
-    for definition, index in definitionsList
-      $('#' + index).attr("data-definition", definition)
-      $('#' + index).attr("data-title", definition)
-      $('#' + index).attr('data-define': 'false')
+    addDefinitionAttributes definitionsList
   else
     throw 'definition list length mismatch!!!'
 
-  definedWordElements = $('.word').filter -> # TODO: Bad tooltip positioning on wrapped words
+  setTooltipDefinition()
+  setTooltipTextHighlight()
+
+addDefinitionAttributes = (definitionsList) ->
+  for definition, index in definitionsList
+    $('#' + index).attr("data-definition", definition)
+    $('#' + index).attr("data-title", definition)
+    $('#' + index).attr('data-define': 'false')
+
+setDefinedWords = ->
+  $('.word').filter -> # TODO: Bad tooltip positioning on wrapped words
     wordType = @.getAttribute('data-word-type-ja')
     $.inArray(wordType, DEFINED_WORD_TYPES_JUMAN) isnt -1
 
+setTooltipDefinition = ->
+  definedWordElements = setDefinedWords()
   definedWordElements.attr('data-define': 'true')
   definedWordElements.tooltip()
 
+setTooltipTextHighlight = ->
   $(".word").on "show.bs.tooltip", ->
     $(this).animate(backgroundColor: 'lightblue', 400)
-
   $(".word").on "hide.bs.tooltip", ->
     $(this).animate(backgroundColor: 'white', 100)
-
