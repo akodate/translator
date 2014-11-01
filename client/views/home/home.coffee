@@ -26,10 +26,10 @@ Template.home.rendered = ->
 
   setWindowResizeListener()
 
-  Translations.remove({})
-  Translations.insert({})
   translationArrGT = []
-  Translations.update({}, {$set: {translationArrGT}})
+  definitionArrGT = []
+  Translations.remove({})
+  Translations.insert({translationArrGT, definitionArrGT})
 
 
 
@@ -41,23 +41,19 @@ Template.home.rendered = ->
 
 Template.home.events
 
-  # Translate
+  # Google translate original
   "click .translate-btn": (event, ui) -> # TODO: Define upper limit for GT requests
+    fieldName = 'translationArrGT'
     text = $('.original-content').text() # TODO: Slice up request like for JUMAN analysis
     text = text.match(REQUEST_SPLITTER_GT_JA)
-    Translations.update({}, {$set: {queryNum: text.length}})
+    Translations.update({}, {$set: {translationArrNumGT: text.length}})
 
     for textBlock, index in text
       queryNum = Array(index + 1).join '*'
-      $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text&q=' + textBlock + '&q=' + queryNum, (data) ->
-        # console.log "Data: ", data
-        translation = data.data.translations[0].translatedText
-        queryNum = data.data.translations[1].translatedText.length
-        console.log "Translations: ", translation
-        console.log "Index: ", queryNum
-        translationArrGT = Translations.findOne().translationArrGT
-        translationArrGT[queryNum] = translation
-        Translations.update({}, {$set: {translationArrGT}})
+      $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text&q=' + queryNum + '&q=' + textBlock, (data) ->
+
+        translation = data.data.translations[1].translatedText
+        updateGT fieldName, translation, data
 
   # JUMAN Analysis
   "click .juman-btn": (event, ui) ->
@@ -110,13 +106,29 @@ Tracker.autorun ->
 
   # Generates list of words from machine translated text
   translationArrGT = Translations.findOne().translationArrGT
-  if translationArrGT and translationArrGT.length is Translations.findOne().queryNum
+  if translationArrGT and (translationArrGT.length is Translations.findOne().translationArrNumGT)
     translationGT = translationArrGT.join ''
     translationGT = translationGT.replace(NON_AUTOCOMPLETED_CHARS_EN, '')
     translationWordsGT = translationGT.split ' '
     translationWordsGT = translationWordsGT.filter (word) -> word isnt ''
     Translations.update({}, {$set: {translationWordsGT}})
     console.log "translationWordsGT", translationWordsGT
+
+
+Tracker.autorun ->
+
+  # Activates tooltips
+  definitionArrGT = Translations.findOne().definitionArrGT
+  definitionArrNumGT = Translations.findOne().definitionArrNumGT
+  if definitionArrGT and definitionArrNumGT and (definitionArrGT.length is definitionArrNumGT)
+    if definitionArrGT.length > 1
+      definitionWordsGT = definitionArrGT[0].concat definitionArrGT[1..-1]
+    else
+      definitionWordsGT = definitionArrGT[0]
+    Translations.update({}, {$set: {definitionWordsGT}})
+    console.log "definitionWordsGT", definitionWordsGT
+    unless $('.word').attr('data-define') # Add definition tooltips only if they're not there already (no data-define attr)
+      addDefinitions definitionWordsGT
 
 
 Tracker.autorun ->
@@ -208,29 +220,37 @@ replaceSuffixTypeJUMAN = (word, nextType) ->
 
 
 
-@translateListGT = (list, parseCount, definitionsList) -> # TODO: Split queries, send all at once, reorder all results
-  parseCount ||= 0 # TODO: Filter querylist before GT request and match words up afterwards
-  definitionsList ||= []
+@translateListGT = (list) -> # TODO: Split queries, send all at once, reorder all results
+  Translations.update({}, {$set: {definitionArrNumGT: undefined}})
+  fieldName = 'definitionArrGT'
+  queryStringArr = generateQueryGT(list)
+  for queryString in queryStringArr
+    $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text' + queryString
+    , (data) ->
 
-  [queryString, parseCount] = generateQueryGT(list, parseCount)
-
-  $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text' + queryString
-  , (data) ->
-    definitionsList = definitionsList.concat(translation.translatedText for translation in data.data.translations) # +GT results
-    if parseCount isnt list.length # Recursive if list isn't fully parsed
-      translateListGT(list, parseCount, definitionsList)
-    else
-      unless $('.word').attr('data-define') # Add definition tooltips only if they're not there already (no data-define attr)
-        addDefinitions definitionsList
+      definitions = []
+      definitions.push(definition.translatedText) for definition in data.data.translations[1..-1]
+      updateGT fieldName, definitions, data
 
 generateQueryGT = (list, parseCount) ->
-  if list.length - parseCount > 100
-    queryString = ('&q=' + query for query in list[parseCount..(parseCount + 99)]).join ''
-    parseCount += 100
-  else
-    queryString = ('&q=' + query for query in list[parseCount..-1]).join ''
-    parseCount = list.length
-  [queryString, parseCount]
+  queryStringArr = []
+  definitionArrNumGT = Math.floor(list.length / 100) + 1
+  Translations.update({}, {$set: {definitionArrNumGT}})
+  for index in [0..(definitionArrNumGT - 1)]
+    queryNum = Array(index + 1).join '*'
+    if index < definitionArrNumGT
+      queryString = '&q=' + queryNum + (('&q=' + query for query in list[(index * 100)..((index * 100) + 99)]).join '')
+    else
+      queryString = '&q=' + queryNum + (('&q=' + query for query in list[(index * 100)..-1]).join '')
+    queryStringArr.push queryString
+  queryStringArr
+
+updateGT = (fieldName, result, data) ->
+  queryNum = data.data.translations[0].translatedText.length # Number of query result that needs to be recombined
+  arr = Translations.findOne()[fieldName] # Retrieves array for recombining query results
+  arr[queryNum] = result # Puts the query result in the properly numbered element of the array
+  (obj = {})[fieldName] = arr # Creates an object with the needed dynamic key a.k.a. array name
+  Translations.update({}, {$set: obj})
 
 addDefinitions = (definitionsList) ->
   if definitionsList.length is $('.word').length

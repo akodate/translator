@@ -2,9 +2,6 @@ Meteor.methods
 
   getWordAnalysisJUMAN: (splitText) ->
     if Meteor.isServer
-      # Meteor.setTimeout ->
-      #   JUMANRequest(splitText)
-      # ), 1000
       wordAnalysisJUMAN = []
       for text in splitText
         rawHTML = JUMANRequest(text)
