@@ -2,12 +2,14 @@ TAB_KEYCODE = 9
 AUTOCOMPLETE_MIN_CHARS = 3
 NON_AUTOCOMPLETED_CHARS_EN = new RegExp /[^a-zA-Z0-9\s'-]/g
 
+REQUEST_SPLITTER_GT_JA = /[^]{1,250}[$\n。？！?!、,　\s]/g # Greedy up to 250 chars with clean break
+
 SENTENCE_ENDINGS_REGEX_JA = /(.+?([。！？]|･･･|$)(?![。！？]|･･･))/g # Sentence up until end of sentence ending(s)
 PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞']
 DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞']
 
-@Translation = new Meteor.Collection(null)
-Translation.insert({})
+@Translations = new Meteor.Collection(null)
+Translations.insert({})
 
 
 
@@ -21,8 +23,10 @@ Template.home.rendered = ->
 
   setWindowResizeListener()
 
-  machineTranslation = MACHINE_TRANSLATION_EN
-  Translation.update({}, {$set: {machineTranslation}})
+  Translations.remove({})
+  Translations.insert({})
+  translationArrGT = []
+  Translations.update({}, {$set: {translationArrGT}})
 
 
 
@@ -36,13 +40,21 @@ Template.home.events
 
   # Translate
   "click .translate-btn": (event, ui) -> # TODO: Define upper limit for GT requests
-    text = $('.original-content').text()
-    $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text&q=' + text, (data) ->
-      console.log "Data: ", data
-      machineTranslation = data.data.translations[0].translatedText
-      # $('.translation-content').text(machineTranslation).focus()
-      Translation.update({}, {$set: {machineTranslation}})
-      console.log machineTranslation
+    text = $('.original-content').text() # TODO: Slice up request like for JUMAN analysis
+    text = text.match(REQUEST_SPLITTER_GT_JA)
+    Translations.update({}, {$set: {queryNum: text.length}})
+
+    for textBlock, index in text
+      queryNum = Array(index + 1).join '*'
+      $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text&q=' + textBlock + '&q=' + queryNum, (data) ->
+        # console.log "Data: ", data
+        translation = data.data.translations[0].translatedText
+        queryNum = data.data.translations[1].translatedText.length
+        console.log "Translations: ", translation
+        console.log "Index: ", queryNum
+        translationArrGT = Translations.findOne().translationArrGT
+        translationArrGT[queryNum] = translation
+        Translations.update({}, {$set: {translationArrGT}})
 
   # JUMAN Analysis
   "click .juman-btn": (event, ui) ->
@@ -61,7 +73,7 @@ Template.home.events
   "keypress .translation-content": (event, ui) -> # TODO: Need to allow mid-content editing, disable if cursor is in word
     input = String.fromCharCode(event.keyCode)
     unless !input or NON_AUTOCOMPLETED_CHARS_EN.test input # TODO: Might not work for all browsers because of special keycodes
-      if Translation.findOne().machineTranslationWords
+      if Translations.findOne().translationWordsGT
         $('.translation-content').on 'keyup', (event) ->
           $('.translation-content').off('keyup')
 
@@ -72,8 +84,8 @@ Template.home.events
           lastWord = _.last humanWords
 
           if lastWord and lastWord.length >= AUTOCOMPLETE_MIN_CHARS
-            machineTranslationWords = Translation.findOne().machineTranslationWords
-            unusedWords = _.difference machineTranslationWords, humanWords # Case sensitive
+            translationWordsGT = Translations.findOne().translationWordsGT
+            unusedWords = _.difference translationWordsGT, humanWords # Case sensitive
             unusedWords = _.uniq unusedWords
             lastWordMatches = unusedWords.filter (word) -> word[0..(lastWord.length - 1)] is lastWord
 
@@ -93,12 +105,14 @@ Template.home.events
 Tracker.autorun ->
 
   # Generates list of words from machine translated text
-  if machineTranslation = Translation.findOne().machineTranslation
-    machineTranslation = machineTranslation.replace(NON_AUTOCOMPLETED_CHARS_EN, '')
-    machineTranslationWords = machineTranslation.split ' '
-    machineTranslationWords = machineTranslationWords.filter (word) -> word isnt ''
-    Translation.update({}, {$set: {machineTranslationWords}})
-    console.log "machineTranslationWords", machineTranslationWords
+  translationArrGT = Translations.findOne().translationArrGT
+  if translationArrGT and translationArrGT.length is Translations.findOne().queryNum
+    translationGT = translationArrGT.join ''
+    translationGT = translationGT.replace(NON_AUTOCOMPLETED_CHARS_EN, '')
+    translationWordsGT = translationGT.split ' '
+    translationWordsGT = translationWordsGT.filter (word) -> word isnt ''
+    Translations.update({}, {$set: {translationWordsGT}})
+    console.log "translationWordsGT", translationWordsGT
 
 
 Tracker.autorun ->
@@ -190,7 +204,7 @@ replaceSuffixTypeJUMAN = (word, nextType) ->
 
 
 
-@translateListGT = (list, parseCount, definitionsList) ->
+@translateListGT = (list, parseCount, definitionsList) -> # TODO: Split queries, send all at once, reorder all results
   parseCount ||= 0 # TODO: Filter querylist before GT request and match words up afterwards
   definitionsList ||= []
 
