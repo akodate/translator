@@ -1,6 +1,7 @@
 TAB_KEYCODE = 9
 AUTOCOMPLETE_MIN_CHARS = 3
-NON_AUTOCOMPLETED_CHARS_EN = new RegExp /[^a-zA-Z0-9\s'-]/g
+NON_AUTOCOMPLETED_CHARS_EN = /[^a-zA-Z0-9\s'-]/g
+LAST_WORD_REGEX_EN = /\w+$/
 
 REQUEST_SPLITTER_GT_JA = /[^]{1,250}[$\n。？！?!、,　\s]/g # Greedy up to 250 chars with clean break
 
@@ -20,6 +21,8 @@ Translations.insert({})
 
 
 Template.home.rendered = ->
+
+  Session.set 'keydownNum', 0
 
   setWindowResizeListener()
 
@@ -71,28 +74,29 @@ Template.home.events
 
   # Autocompletion on keyup
   "keypress .translation-content": (event, ui) -> # TODO: Need to allow mid-content editing, disable if cursor is in word
+    keydownNum = keydownTracker 1
     input = String.fromCharCode(event.keyCode)
     unless !input or NON_AUTOCOMPLETED_CHARS_EN.test input # TODO: Might not work for all browsers because of special keycodes
       if Translations.findOne().translationWordsGT
         $('.translation-content').on 'keyup', (event) ->
           $('.translation-content').off('keyup')
+          keydownNum = keydownTracker -1
 
-          target = event.target
-          targetText = target.innerText
+          if keydownNum is 0
+            target = event.target
+            targetText = target.innerText
+            lastWord = targetText.match(LAST_WORD_REGEX_EN)[0] if targetText.match(LAST_WORD_REGEX_EN)
 
-          humanWords = targetText.split ' '
-          lastWord = _.last humanWords
+            if lastWord and lastWord.length >= AUTOCOMPLETE_MIN_CHARS
+              translationWordsGT = Translations.findOne().translationWordsGT
+              # unusedWords = _.difference translationWordsGT, humanWords # Case sensitive
+              # unusedWords = _.uniq unusedWords
+              lastWordMatches = translationWordsGT.filter (word) -> word[0..(lastWord.length - 1)] is lastWord
 
-          if lastWord and lastWord.length >= AUTOCOMPLETE_MIN_CHARS
-            translationWordsGT = Translations.findOne().translationWordsGT
-            unusedWords = _.difference translationWordsGT, humanWords # Case sensitive
-            unusedWords = _.uniq unusedWords
-            lastWordMatches = unusedWords.filter (word) -> word[0..(lastWord.length - 1)] is lastWord
-
-            if lastWordMatches.length > 0
-              addedText = lastWordMatches[0][lastWord.length..-1]
-              $(target).text(targetText + addedText)
-              selectNewText(target, addedText)
+              if lastWordMatches.length > 0 # TODO: Keep newlines from being ignored
+                addedText = lastWordMatches[0][lastWord.length..-1]
+                $(target).text(targetText + addedText)
+                selectNewText(target, addedText)
 
 
 
@@ -258,3 +262,11 @@ setTooltipTextHighlight = ->
     $(this).animate(backgroundColor: 'lightblue', 400)
   $(".word").on "hide.bs.tooltip", ->
     $(this).animate(backgroundColor: 'white', 100)
+
+
+
+
+@keydownTracker = (increment) ->
+  keydownNum = Session.get('keydownNum') + increment
+  Session.set 'keydownNum', keydownNum
+  keydownNum
