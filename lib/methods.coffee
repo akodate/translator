@@ -11,12 +11,12 @@ Meteor.methods
         wordAnalysisJUMAN = wordAnalysisJUMAN.concat parseWordAnalysisJUMAN rawHTML.result
 
       console.log 'Complete: ', wordAnalysisJUMAN
-      WordAnalysis.update {}, {wordAnalysisJUMAN}
+      WordAnalysis.upsert {}, {wordAnalysisJUMAN}
 
 
 
 
-@JUMANRequest = (text) ->
+@JUMANRequest = (text) -> # TODO: Preserve newlines
   rawHTML = Async.runSync((done) ->
     curl.request
       url: 'http://lotus.kuee.kyoto-u.ac.jp/nl-resource/cgi-bin/juman.cgi'

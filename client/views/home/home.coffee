@@ -8,6 +8,7 @@ REQUEST_SPLITTER_GT_JA = /[^]{1,250}[$\n。？！?!、,　\s]/g # Greedy up to 2
 SENTENCE_ENDINGS_REGEX_JA = /(.+?([。！？]|･･･|$)(?![。！？]|･･･))/g # Sentence up until end of sentence ending(s)
 PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞']
 DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞', '複合形容詞']
+EXTRA_INFO_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞']
 
 @Translations = new Meteor.Collection(null)
 Translations.insert({})
@@ -27,6 +28,8 @@ Template.home.rendered = ->
   definitionArrGT = []
   Translations.remove({})
   Translations.insert({translationArrGT, definitionArrGT})
+  id = WordAnalysis.findOne()._id if WordAnalysis.findOne()
+  WordAnalysis.remove(_id: id) if id
 
   setWindowResizeListener()
 
@@ -88,7 +91,7 @@ Template.home.events
               # unusedWords = _.uniq unusedWords
               lastWordMatches = translationWordsGT.filter (word) -> word[0..(lastWord.length - 1)] is lastWord
 
-              if lastWordMatches.length > 0 # TODO: Keep newlines from being ignored
+              if lastWordMatches.length > 0 # TODO: Keep newlines from being crushed
                 addedText = lastWordMatches[0][lastWord.length..-1]
                 $(target).text(targetText + addedText)
                 selectNewText(target, addedText)
@@ -105,13 +108,20 @@ Tracker.autorun ->
 
   # Generates list of words from machine translated text
   translationArrGT = Translations.findOne().translationArrGT
-  if translationArrGT and (translationArrGT.length is Translations.findOne().translationArrNumGT)
+  if translationArrGT and (translationArrGT.length is Translations.findOne().translationArrNumGT) and (translationArrGT.every (set) -> set isnt undefined)
+
     translationGT = translationArrGT.join ''
+
+    if ($('.translation-content')[0].innerText.indexOf translationGT) is -1
+      addedText = translationGT
+      $('.translation-content').text($('.translation-content')[0].innerText + addedText)
+      selectNewText($('.translation-content')[0], addedText)
+
     translationGT = translationGT.replace(NON_AUTOCOMPLETED_CHARS_EN, '')
     translationWordsGT = translationGT.split ' '
     translationWordsGT = translationWordsGT.filter (word) -> word isnt ''
     Translations.update({}, {$set: {translationWordsGT}})
-    console.log "translationWordsGT", translationWordsGT
+    console.log "translationWordsGT: " + translationWordsGT
 
 
 Tracker.autorun ->
@@ -143,6 +153,8 @@ Tracker.autorun ->
       for word, index in wordAnalysisJUMAN
         wordAnalysisJUMAN[index]['id'] = index
         $('.original-content').append('<span id="' + index + '" class="word" data-word-type-ja="' + word.type + '">' + word.word + '</span>')
+        if word.type in EXTRA_INFO_TYPES_JUMAN
+          $($('.original-content')[0].lastChild).attr('data-pronunciation', word.pronunciation)
 
       console.log 'wordAnalysisJUMAN: ', wordAnalysisJUMAN
       queryList = (word.word for word in wordAnalysisJUMAN)
@@ -233,6 +245,7 @@ replaceSuffixTypeJUMAN = (word, nextType) ->
 
 @translateListGT = (list) ->
   fieldName = 'definitionArrGT'
+
   queryStringArr = generateQueryGT(list)
   for queryString in queryStringArr
     $.get 'https://www.googleapis.com/language/translate/v2?key=AIzaSyBwSIYMthHNo71Y0XIdAjTns3nOm2OYQDs&source=ja&target=en&format=text' + queryString
@@ -245,7 +258,7 @@ replaceSuffixTypeJUMAN = (word, nextType) ->
 generateQueryGT = (list, parseCount) ->
   queryStringArr = []
   definitionArrNumGT = Math.floor(list.length / 100) + 1
-  Translations.update({}, {$set: {definitionArrNumGT}})
+  Translations.update({}, {$set: {definitionArrNumGT, definitionArrGT: []}})
   for index in [0..(definitionArrNumGT - 1)]
     queryNum = Array(index + 1).join '*'
     if index < definitionArrNumGT
@@ -266,8 +279,10 @@ addDefinitions = (definitionsList) ->
 
 addDefinitionAttributes = (definitionsList) ->
   for definition, index in definitionsList
-    $('#' + index).attr("data-definition", definition)
-    $('#' + index).attr("data-title", definition)
+    pronunciation = $('#' + index).attr('data-pronunciation')
+    definition = definition + ' (' + pronunciation + ')' if pronunciation
+    $('#' + index).attr('data-definition', definition)
+    $('#' + index).attr('data-title', definition)
     $('#' + index).attr('data-define': 'false')
 
 setDefinedWords = ->
