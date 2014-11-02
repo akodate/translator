@@ -7,7 +7,7 @@ REQUEST_SPLITTER_GT_JA = /[^]{1,250}[$\n。？！?!、,　\s]/g # Greedy up to 2
 
 SENTENCE_ENDINGS_REGEX_JA = /(.+?([。！？]|･･･|$)(?![。！？]|･･･))/g # Sentence up until end of sentence ending(s)
 PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞']
-DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞']
+DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞', '複合形容詞']
 
 @Translations = new Meteor.Collection(null)
 Translations.insert({})
@@ -44,7 +44,7 @@ Template.home.events
   # Google translate original
   "click .translate-btn": (event, ui) -> # TODO: Define upper limit for GT requests
     fieldName = 'translationArrGT'
-    text = $('.original-content').text() # TODO: Slice up request like for JUMAN analysis
+    text = $('.original-content').text()
     text = text.match(REQUEST_SPLITTER_GT_JA)
     Translations.update({}, {$set: {translationArrNumGT: text.length}})
 
@@ -216,12 +216,20 @@ replaceSuffixTypeJUMAN = (word, nextType) ->
     '複合名詞'
   else if word.type is '動詞' and nextType is '接尾辞' or nextType is '助動詞'
     '複合動詞'
+  else if word.type is '形容詞' and nextType is '接尾辞'
+    '複合形容詞'
 
 
 
 
-@translateListGT = (list) -> # TODO: Split queries, send all at once, reorder all results
-  Translations.update({}, {$set: {definitionArrNumGT: undefined}})
+@updateGT = (fieldName, result, data) ->
+  queryNum = data.data.translations[0].translatedText.length # Number of query result that needs to be recombined
+  arr = Translations.findOne()[fieldName] # Retrieves array for recombining query results
+  arr[queryNum] = result # Puts the query result in the properly numbered element of the array
+  (obj = {})[fieldName] = arr # Creates an object with the needed dynamic key a.k.a. array name
+  Translations.update({}, {$set: obj})
+
+@translateListGT = (list) ->
   fieldName = 'definitionArrGT'
   queryStringArr = generateQueryGT(list)
   for queryString in queryStringArr
@@ -244,13 +252,6 @@ generateQueryGT = (list, parseCount) ->
       queryString = '&q=' + queryNum + (('&q=' + query for query in list[(index * 100)..-1]).join '')
     queryStringArr.push queryString
   queryStringArr
-
-updateGT = (fieldName, result, data) ->
-  queryNum = data.data.translations[0].translatedText.length # Number of query result that needs to be recombined
-  arr = Translations.findOne()[fieldName] # Retrieves array for recombining query results
-  arr[queryNum] = result # Puts the query result in the properly numbered element of the array
-  (obj = {})[fieldName] = arr # Creates an object with the needed dynamic key a.k.a. array name
-  Translations.update({}, {$set: obj})
 
 addDefinitions = (definitionsList) ->
   if definitionsList.length is $('.word').length
