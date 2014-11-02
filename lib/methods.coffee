@@ -2,9 +2,12 @@ Meteor.methods
 
   getWordAnalysisJUMAN: (splitText) ->
     if Meteor.isServer
+      # Meteor.setTimeout (->
+      #   JUMANRequest(splitText)
+      # ), 1000
       wordAnalysisJUMAN = []
       for text in splitText
-        rawHTML = JUMANRequest(text)
+        rawHTML = JUMANRequest(text) # TODO: get this to run asynchronously despite the npm package
         wordAnalysisJUMAN = wordAnalysisJUMAN.concat parseWordAnalysisJUMAN rawHTML.result
 
       console.log 'Complete: ', wordAnalysisJUMAN

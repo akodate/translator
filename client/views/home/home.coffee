@@ -44,7 +44,7 @@ Template.home.events
   # Google translate original
   "click .translate-btn": (event, ui) -> # TODO: Define upper limit for GT requests
     fieldName = 'translationArrGT'
-    text = $('.original-content').text()
+    text = $('.original-content')[0].innerText
     text = text.match(REQUEST_SPLITTER_GT_JA)
     Translations.update({}, {$set: {translationArrNumGT: text.length}})
 
@@ -57,7 +57,7 @@ Template.home.events
 
   # JUMAN Analysis
   "click .juman-btn": (event, ui) ->
-    text = $('.original-content').text()
+    text = $('.original-content')[0].innerText
     splitText = splitTextJA(text)
     Meteor.call 'getWordAnalysisJUMAN', splitText
 
@@ -120,9 +120,12 @@ Tracker.autorun ->
   # Activates tooltips
   definitionArrGT = Translations.findOne().definitionArrGT
   definitionArrNumGT = Translations.findOne().definitionArrNumGT
-  if definitionArrGT and definitionArrNumGT and (definitionArrGT.length is definitionArrNumGT)
+  if definitionArrGT and (definitionArrGT.length is definitionArrNumGT) and (definitionArrGT.every (set) -> set isnt undefined)
     if definitionArrGT.length > 1
-      definitionWordsGT = definitionArrGT[0].concat definitionArrGT[1..-1]
+      # definitionWordsGT = (definitionArrGT[0].concat(definitionSet)) for definitionSet in definitionArrGT[1..-1]
+      definitionWordsGT = []
+      for definitionSet in definitionArrGT[0..-1]
+        definitionWordsGT = definitionWordsGT.concat definitionSet
     else
       definitionWordsGT = definitionArrGT[0]
     Translations.update({}, {$set: {definitionWordsGT}})
@@ -142,7 +145,7 @@ Tracker.autorun ->
         wordAnalysisJUMAN[index]['id'] = index
         $('.original-content').append('<span id="' + index + '" class="word" data-word-type-ja="' + word.type + '">' + word.word + '</span>')
 
-      console.log wordAnalysisJUMAN
+      console.log 'wordAnalysisJUMAN: ', wordAnalysisJUMAN
       queryList = (word.word for word in wordAnalysisJUMAN)
 
       translateListGT queryList
