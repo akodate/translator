@@ -6,8 +6,8 @@ Meteor.methods
       #   JUMANRequest(splitText)
       # ), 1000
       wordAnalysisJUMAN = []
-      for text in splitText
-        rawHTML = JUMANRequest(text) # TODO: get this to run asynchronously despite the npm package
+      for text in splitText # TODO: Send progress to client
+        rawHTML = JUMANRequest(text) # TODO: Get this to run asynchronously despite the npm package
         wordAnalysisJUMAN = wordAnalysisJUMAN.concat parseWordAnalysisJUMAN rawHTML.result
 
       console.log 'Complete: ', wordAnalysisJUMAN

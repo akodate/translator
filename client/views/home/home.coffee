@@ -23,13 +23,12 @@ Translations.insert({})
 Template.home.rendered = ->
 
   Session.set 'keydownNum', 0
-
-  setWindowResizeListener()
-
   translationArrGT = []
   definitionArrGT = []
   Translations.remove({})
   Translations.insert({translationArrGT, definitionArrGT})
+
+  setWindowResizeListener()
 
 
 
@@ -46,7 +45,7 @@ Template.home.events
     fieldName = 'translationArrGT'
     text = $('.original-content')[0].innerText
     text = text.match(REQUEST_SPLITTER_GT_JA)
-    Translations.update({}, {$set: {translationArrNumGT: text.length}})
+    Translations.update({}, {$set: {translationArrNumGT: text.length, translationArrGT: []}})
 
     for textBlock, index in text
       queryNum = Array(index + 1).join '*'
@@ -70,10 +69,10 @@ Template.home.events
 
   # Autocompletion on keyup
   "keypress .translation-content": (event, ui) -> # TODO: Need to allow mid-content editing, disable if cursor is in word
-    keydownNum = keydownTracker 1
     input = String.fromCharCode(event.keyCode)
     unless !input or NON_AUTOCOMPLETED_CHARS_EN.test input # TODO: Might not work for all browsers because of special keycodes
       if Translations.findOne().translationWordsGT
+        keydownNum = keydownTracker 1
         $('.translation-content').on 'keyup', (event) ->
           $('.translation-content').off('keyup')
           keydownNum = keydownTracker -1
