@@ -6,7 +6,7 @@ LAST_WORD_REGEX_EN = /\w+$/
 REQUEST_SPLITTER_GT_JA = /[^]{1,250}[$\n。？！?!、,　\s]/g # Greedy up to 250 chars with clean break
 
 SENTENCE_ENDINGS_REGEX_JA = /(.+?([。！？]|･･･|$)(?![。！？]|･･･))/g # Sentence up until end of sentence ending(s)
-PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞']
+PRIMARY_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '複合名詞', '複合動詞', '複合形容詞']
 DEFINED_WORD_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞', '複合名詞', '複合動詞', '複合形容詞']
 EXTRA_INFO_TYPES_JUMAN = ['名詞', '動詞', '形容詞', '副詞']
 
@@ -232,7 +232,8 @@ replaceSuffixTypeJUMAN = (word, nextType) ->
     '複合動詞'
   else if word.type is '形容詞' and nextType is '接尾辞'
     '複合形容詞'
-
+  else if word.type in ['複合名詞', '複合動詞', '複合形容詞']
+    word.type
 
 
 
